@@ -54,6 +54,9 @@
     box.append(title, copy, details); appendQr(box, data); box.append(actions); overlay.append(box); root.append(overlay);
   }
   async function install() { await track('install_prompt'); if (installPrompt) { installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; return; } if (/iPad|iPhone|iPod/.test(navigator.userAgent)) { const overlay = document.createElement('div'); overlay.className = 'wifi-modal'; overlay.innerHTML = '<section class="wifi-box"><h2>Adicionar à tela inicial</h2><p>No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.</p><div class="wifi-actions"><button class="secondary">Fechar</button></div></section>'; overlay.querySelector('button').addEventListener('click', () => overlay.remove()); root.append(overlay); } }
+  function installHelp() { const overlay = document.createElement('div'); overlay.className = 'wifi-modal'; overlay.innerHTML = '<section class="wifi-box"><h2>Adicionar a tela inicial</h2><p>O navegador ainda nao liberou a instalacao. Abra o menu do Chrome e escolha Instalar aplicativo ou Adicionar a tela inicial.</p><div class="wifi-actions"><button class="secondary">Fechar</button></div></section>'; overlay.querySelector('button').addEventListener('click', () => overlay.remove()); root.append(overlay); }
+  const browserInstall = install;
+  install = async () => { const promptWasAvailable = Boolean(installPrompt); await browserInstall(); if (!promptWasAvailable && !/iPad|iPhone|iPod/.test(navigator.userAgent)) installHelp(); };
   function render() {
     document.title = page.name; document.querySelector('meta[name="theme-color"]').content = page.theme.primary_color; root.replaceChildren();
     const card = document.createElement('section'); card.className = 'public-card'; card.style.background = page.theme.background_color; card.style.color = page.theme.text_color;
@@ -67,8 +70,11 @@
     if (!config.supabaseUrl || !config.supabaseAnonKey) return state('Configuração indisponível', 'Esta página ainda não está configurada.'); api = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
     const query = new URLSearchParams(location.search); const slug = query.get('slug') || location.pathname.split('/').filter(Boolean).pop(); if (!slug || slug === 'p' || slug === 'index.html') return state('Página não encontrada', 'Use o link completo fornecido pelo estabelecimento.');
     const { data, error } = await api.rpc('get_public_tenant_page', { requested_slug: slug }); if (error || !data) return state('Página não encontrada', 'Este estabelecimento não está disponível.'); if (data.availability === 'unavailable') return state('Este estabelecimento está temporariamente indisponível.', 'Tente novamente em outro momento.'); page = data;
-    const manifest = { name: page.name, short_name: page.name.slice(0, 12), start_url: location.href, display: 'standalone', background_color: page.theme.background_color, theme_color: page.theme.primary_color, icons: [{ src: new URL('../assets/pwa-icon.svg', location.href).href, sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }] }; document.querySelector('link[rel="manifest"]').href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
-    window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt = event; }); window.addEventListener('appinstalled', () => track('install_prompt')); if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js'); render(); track('page_view');
+    render(); track('page_view');
   }
+  const initialQuery = new URLSearchParams(location.search); const initialSlug = initialQuery.get('slug'); if (initialSlug) localStorage.setItem('nfc-hub-installed-slug', initialSlug); else if (initialQuery.has('installed')) { const savedSlug = localStorage.getItem('nfc-hub-installed-slug'); if (savedSlug) history.replaceState(null, '', `${location.pathname}?slug=${encodeURIComponent(savedSlug)}`); }
+  window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt = event; });
+  window.addEventListener('appinstalled', () => { if (page) track('install_prompt'); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
   boot();
 })();
