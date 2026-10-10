@@ -70,11 +70,25 @@
     if (!config.supabaseUrl || !config.supabaseAnonKey) return state('Configuração indisponível', 'Esta página ainda não está configurada.'); api = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
     const query = new URLSearchParams(location.search); const slug = query.get('slug') || location.pathname.split('/').filter(Boolean).pop(); if (!slug || slug === 'p' || slug === 'index.html') return state('Página não encontrada', 'Use o link completo fornecido pelo estabelecimento.');
     const { data, error } = await api.rpc('get_public_tenant_page', { requested_slug: slug }); if (error || !data) return state('Página não encontrada', 'Este estabelecimento não está disponível.'); if (data.availability === 'unavailable') return state('Este estabelecimento está temporariamente indisponível.', 'Tente novamente em outro momento.'); page = data;
+    const defaultIcon = new URL('../assets/pwa-icon.svg', location.href).href;
+    const logoIcon = page.logo_path ? api.storage.from('tenant-logos').getPublicUrl(page.logo_path).data.publicUrl : '';
+    const manifest = {
+      name: page.name,
+      short_name: page.name.slice(0, 12),
+      start_url: location.href,
+      display: 'standalone',
+      background_color: page.theme.background_color,
+      theme_color: page.theme.primary_color,
+      icons: logoIcon
+        ? [{ src: logoIcon, purpose: 'any maskable' }, { src: defaultIcon, sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }]
+        : [{ src: defaultIcon, sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+    };
+    document.querySelector('link[rel="manifest"]').href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
     render(); track('page_view');
   }
   const initialQuery = new URLSearchParams(location.search); const initialSlug = initialQuery.get('slug'); if (initialSlug) localStorage.setItem('nfc-hub-installed-slug', initialSlug); else if (initialQuery.has('installed')) { const savedSlug = localStorage.getItem('nfc-hub-installed-slug'); if (savedSlug) history.replaceState(null, '', `${location.pathname}?slug=${encodeURIComponent(savedSlug)}`); }
   window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt = event; });
   window.addEventListener('appinstalled', () => { if (page) track('install_prompt'); });
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js').catch(() => {});
   boot();
 })();
