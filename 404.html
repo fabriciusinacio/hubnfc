@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Redirecionando</title></head>
+  <body>
+    <script>
+      (() => {
+        const parts = location.pathname.split('/').filter(Boolean);
+        const routeIndex = parts.findIndex((part) => part === 'r' || part === 'w');
+        const code = routeIndex >= 0 ? parts[routeIndex + 1] : '';
+        if (!/^[a-f0-9]{24}$/i.test(code)) return;
+        const base = `/${parts.slice(0, routeIndex).join('/')}`.replace(/\/$/, '');
+        location.replace(`${base}/${parts[routeIndex]}/index.html?code=${encodeURIComponent(code)}`);
+      })();
+    </script>
+    <p>Redirecionando...</p>
+  </body>
+</html>

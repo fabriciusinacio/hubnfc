@@ -2,8 +2,10 @@ window.NfcHubPlates = (() => {
   let api; let target; let notify; let templates = []; let tenants = []; let plates = [];
   const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
   const refreshIcons = () => window.lucide?.createIcons();
-  const plateUrl = (code) => `${location.origin}${location.pathname.replace(/[^/]*$/, '')}r/${code}`;
-  const wifiPlateUrl = (code) => `${location.origin}${location.pathname.replace(/[^/]*$/, '')}w/${code}`;
+  const routeBase = () => `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`;
+  const githubPages = () => location.hostname.endsWith('.github.io');
+  const plateUrl = (code) => `${routeBase()}${githubPages() ? `r/index.html?code=${code}` : `r/${code}`}`;
+  const wifiPlateUrl = (code) => `${routeBase()}${githubPages() ? `w/index.html?code=${code}` : `w/${code}`}`;
   const statusLabel = { available: 'Disponível', reserved: 'Reservada', active: 'Ativa', disabled: 'Desativada' };
   const statusClass = (status) => `badge plate-status ${status}`;
   const templateDefaults = () => ({ x: 50, y: 73, size: 37, margin: 4, number_x: 50, number_y: 94, font_size: 8, color: '#172033', align: 'center' });
