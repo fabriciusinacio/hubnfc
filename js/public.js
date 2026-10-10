@@ -9,18 +9,49 @@
   function state(title, description) { root.innerHTML = '<section class="public-state"><h1></h1><p></p></section>'; root.querySelector('h1').textContent = title; root.querySelector('p').textContent = description; }
   function safeDestination(value) { try { const url = new URL(value); return ['https:', 'http:', 'tel:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
   function wifiPayload(data) { const escape = (value) => String(value).replace(/([\\;,:"])/g, '\\$1'); const type = data.security_type === 'nopass' ? 'nopass' : data.security_type.replace(/[23]/g, ''); return `WIFI:T:${type};S:${escape(data.ssid)};P:${escape(data.password)};H:${data.hidden ? 'true' : 'false'};;`; }
-  function appendQr(box, data) { if (box.querySelector('.wifi-qr')) return; const section = document.createElement('div'); section.className = 'wifi-qr'; const description = document.createElement('p'); description.textContent = 'Se a conexão não abrir, escaneie este QR Code com a câmera do celular.'; const canvas = document.createElement('div'); canvas.className = 'qr-canvas'; section.append(description, canvas); box.append(section); if (window.QRCode) new window.QRCode(canvas, { text: wifiPayload(data), width: 176, height: 176, correctLevel: window.QRCode.CorrectLevel.M }); }
+  function appendQr(box, data) {
+    if (box.querySelector('.wifi-qr')) return;
+    const section = document.createElement('div'); section.className = 'wifi-qr';
+    const description = document.createElement('p'); description.textContent = 'Use este QR Code em outro aparelho ou compartilhe a tela para conectar à rede.';
+    const canvas = document.createElement('div'); canvas.className = 'qr-canvas';
+    section.append(description, canvas); box.append(section);
+    if (window.QRCode) {
+      new window.QRCode(canvas, { text: wifiPayload(data), width: 176, height: 176, correctLevel: window.QRCode.CorrectLevel.M });
+    } else {
+      const fallback = document.createElement('span'); fallback.className = 'qr-unavailable'; fallback.textContent = 'QR Code indisponível. Use os dados da rede acima.'; canvas.append(fallback);
+    }
+  }
+
+  async function copyWifiDetails(data) {
+    const text = `Rede: ${data.ssid}\nSenha: ${data.password}`;
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+      const input = document.createElement('textarea'); input.value = text; input.style.position = 'fixed'; input.style.opacity = '0'; document.body.append(input); input.select();
+      const copied = document.execCommand('copy'); input.remove(); return copied;
+    } catch { return false; }
+  }
+  async function copyWifiPassword(data) {
+    if (data.security_type === 'nopass') return true;
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) { await navigator.clipboard.writeText(data.password); return true; }
+      const input = document.createElement('textarea'); input.value = data.password; input.style.position = 'fixed'; input.style.opacity = '0'; document.body.append(input); input.select(); const copied = document.execCommand('copy'); input.remove(); return copied;
+    } catch { return false; }
+  }
+  function tryOpenWifiSettings(android) {
+    if (!android) return false;
+    location.href = 'intent:#Intent;action=android.settings.WIFI_SETTINGS;end';
+    return true;
+  }
   function openWifi() {
     const data = page.wifi; if (!data) return;
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent); const android = /Android/.test(navigator.userAgent);
-    const overlay = document.createElement('div'); overlay.className = 'wifi-modal'; const box = document.createElement('section'); box.className = 'wifi-box';
+    const overlay = document.createElement('div'); overlay.className = 'wifi-modal'; const box = document.createElement('section'); box.className = 'wifi-box'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
     const title = document.createElement('h2'); title.textContent = 'Conectar ao Wi-Fi';
-    const copy = document.createElement('p'); copy.textContent = ios ? 'No iPhone, abra Ajustes > Wi-Fi e selecione esta rede, ou escaneie o QR Code abaixo.' : android ? 'Tente abrir a conexão. Se não funcionar, use o QR Code.' : 'Abra as configurações de Wi-Fi do dispositivo ou escaneie o QR Code.';
+    const copy = document.createElement('p'); copy.textContent = ios ? 'No iPhone, abra Ajustes > Wi-Fi e selecione esta rede.' : android ? 'No Android, abra as configurações de Wi-Fi e selecione esta rede.' : 'Abra as configurações de Wi-Fi do dispositivo e selecione esta rede.';
     const details = document.createElement('div'); details.className = 'wifi-details'; details.textContent = `Rede: ${data.ssid}`; const password = document.createElement('strong'); password.textContent = data.security_type === 'nopass' ? 'Rede sem senha' : `Senha: ${data.password}`; details.append(password);
-    const actions = document.createElement('div'); actions.className = 'wifi-actions'; const copyButton = document.createElement('button'); copyButton.className = 'secondary'; copyButton.textContent = 'Copiar dados'; copyButton.addEventListener('click', async () => { await navigator.clipboard?.writeText(`Rede: ${data.ssid}\nSenha: ${data.password}`); copyButton.textContent = 'Copiado'; }); actions.append(copyButton);
-    if (android) { const attempt = document.createElement('button'); attempt.textContent = 'Tentar conectar'; attempt.addEventListener('click', () => { appendQr(box, data); attempt.remove(); location.href = wifiPayload(data); }); actions.append(attempt); }
+    const actions = document.createElement('div'); actions.className = 'wifi-actions'; const tryButton = document.createElement('button'); tryButton.textContent = android ? 'Tentar conectar' : 'Ver QR de conexão'; tryButton.addEventListener('click', () => { if (tryOpenWifiSettings(android)) return; appendQr(box, data); tryButton.textContent = 'Escaneie o QR abaixo'; }); actions.append(tryButton); const copyButton = document.createElement('button'); copyButton.className = 'secondary'; copyButton.textContent = data.security_type === 'nopass' ? 'Rede sem senha' : 'Copiar senha e abrir Wi-Fi'; copyButton.disabled = data.security_type === 'nopass'; copyButton.addEventListener('click', async () => { const copied = await copyWifiPassword(data); if (!copied) { copyButton.textContent = 'Não foi possível copiar'; return; } copyButton.textContent = android ? 'Senha copiada' : 'Senha copiada'; if (!tryOpenWifiSettings(android) && ios) copy.textContent = 'Senha copiada. Agora abra Ajustes > Wi-Fi e selecione esta rede.'; }); actions.append(copyButton); const detailsButton = document.createElement('button'); detailsButton.className = 'secondary'; detailsButton.textContent = 'Copiar dados'; detailsButton.addEventListener('click', async () => { const copied = await copyWifiDetails(data); detailsButton.textContent = copied ? 'Dados copiados' : 'Não foi possível copiar'; }); actions.append(detailsButton);
     const close = document.createElement('button'); close.className = 'secondary'; close.textContent = 'Fechar'; close.addEventListener('click', () => overlay.remove()); actions.append(close);
-    box.append(title, copy, details, actions); if (!android) appendQr(box, data); overlay.append(box); root.append(overlay);
+    box.append(title, copy, details); appendQr(box, data); box.append(actions); overlay.append(box); root.append(overlay);
   }
   async function install() { await track('install_prompt'); if (installPrompt) { installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; return; } if (/iPad|iPhone|iPod/.test(navigator.userAgent)) { const overlay = document.createElement('div'); overlay.className = 'wifi-modal'; overlay.innerHTML = '<section class="wifi-box"><h2>Adicionar à tela inicial</h2><p>No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.</p><div class="wifi-actions"><button class="secondary">Fechar</button></div></section>'; overlay.querySelector('button').addEventListener('click', () => overlay.remove()); root.append(overlay); } }
   function render() {

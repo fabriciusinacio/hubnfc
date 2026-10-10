@@ -58,7 +58,7 @@
   }
 
   function renderShell() {
-    app.innerHTML = `<div class="admin-layout"><aside class="sidebar" id="sidebar"><div class="brand"><span class="brand-mark">N</span>NFC Hub</div><nav class="nav" aria-label="Navegação principal"><button class="active" data-view="dashboard">${icon('layout-dashboard', '')}Dashboard</button><button data-view="clients">${icon('building-2', '')}Clientes</button><button data-action="create">${icon('user-plus', '')}Criar cliente</button><button data-view="statistics">${icon('chart-no-axes-combined', '')}Estatísticas</button><button data-view="settings">${icon('settings', '')}Configurações</button></nav><div class="sidebar-footer"><strong id="admin-name"></strong><span id="admin-email"></span><button id="sign-out">Sair</button></div></aside><main class="main"><header class="topbar"><button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">${icon('menu', '')}</button><div class="brand"><span class="brand-mark">N</span>Administração</div></header><section class="view" id="view"></section></main></div>`;
+    app.innerHTML = `<div class="admin-layout"><aside class="sidebar" id="sidebar"><div class="brand"><span class="brand-mark">N</span>NFC Hub</div><nav class="nav" aria-label="Navegação principal"><button class="active" data-view="dashboard">${icon('layout-dashboard', '')}Dashboard</button><button data-view="clients">${icon('building-2', '')}Clientes</button><button data-action="create">${icon('user-plus', '')}Criar cliente</button><button data-view="plates">${icon('qr-code', '')}Gerenciar placas</button><button data-view="statistics">${icon('chart-no-axes-combined', '')}Estatísticas</button><button data-view="settings">${icon('settings', '')}Configurações</button></nav><div class="sidebar-footer"><strong id="admin-name"></strong><span id="admin-email"></span><button id="sign-out">Sair</button></div></aside><main class="main"><header class="topbar"><button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">${icon('menu', '')}</button><div class="brand"><span class="brand-mark">N</span>Administração</div></header><section class="view" id="view"></section></main></div>`;
     document.querySelector('#admin-name').textContent = currentUser.user_metadata?.display_name || 'Super administrador';
     document.querySelector('#admin-email').textContent = currentUser.email || '';
     document.querySelector('#sign-out').addEventListener('click', signOut);
@@ -97,6 +97,10 @@
     if (view === 'statistics') {
       target.innerHTML = `<header class="view-header"><div><p class="eyebrow">ANALYTICS</p><h1>Estatísticas</h1><p>Consulte o desempenho de cada estabelecimento.</p></div></header><section class="panel analytics-selector"><div class="panel-title"><h2>Selecionar cliente</h2></div><div class="selector-content"><label class="field">Estabelecimento<select id="analytics-tenant"><option value="">Carregando clientes...</option></select></label><button class="button button-secondary" id="share-analytics" type="button" disabled>${icon('link', '')}Copiar link de estatísticas</button></div></section><div id="admin-analytics-content"><p class="empty">Selecione um cliente para visualizar as estatísticas.</p></div>`;
       await loadAdminAnalytics();
+      return;
+    }
+    if (view === 'plates') {
+      await window.NfcHubPlates.start({ api: supabase, target, notify: showToast });
       return;
     }
     if (view === 'settings') {
@@ -213,6 +217,7 @@
       },
     });
   }
+  window.NfcHubOpenClientWorkspace = openClientWorkspace;
 
   function openModal(title, subtitle, content) {
     const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
