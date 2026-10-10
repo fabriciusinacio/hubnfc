@@ -9,15 +9,6 @@
   function track(type, buttonId = null) { return api.rpc('record_public_event', { requested_slug: page.slug, requested_event: type, requested_button_id: buttonId, anonymous_id: anonymousId() }); }
   function state(title, description) { root.innerHTML = '<section class="public-state"><h1></h1><p></p></section>'; root.querySelector('h1').textContent = title; root.querySelector('p').textContent = description; }
   function safeDestination(value) { try { const url = new URL(value); return ['https:', 'http:', 'tel:', 'mailto:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
-  function appIcon(logoUrl, color, name) {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
-      const context = canvas.getContext('2d'); context.fillStyle = color || '#176b4d'; context.fillRect(0, 0, 512, 512);
-      const fallback = () => { context.fillStyle = '#ffffff'; context.font = '700 290px Arial, sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle'; context.fillText((name || 'N').trim().charAt(0).toUpperCase(), 256, 274); canvas.toBlob((blob) => resolve(blob ? URL.createObjectURL(blob) : ''), 'image/png'); };
-      if (!logoUrl) return fallback();
-      const image = new Image(); image.crossOrigin = 'anonymous'; image.onload = () => { const scale = Math.min(400 / image.naturalWidth, 400 / image.naturalHeight); const width = image.naturalWidth * scale; const height = image.naturalHeight * scale; context.drawImage(image, (512 - width) / 2, (512 - height) / 2, width, height); canvas.toBlob((blob) => resolve(blob ? URL.createObjectURL(blob) : ''), 'image/png'); }; image.onerror = fallback; image.src = logoUrl;
-    });
-  }
   function wifiPayload(data) { const escape = (value) => String(value).replace(/([\\;,:"])/g, '\\$1'); const type = data.security_type === 'nopass' ? 'nopass' : data.security_type.replace(/[23]/g, ''); return `WIFI:T:${type};S:${escape(data.ssid)};P:${escape(data.password)};H:${data.hidden ? 'true' : 'false'};;`; }
   function appendQr(box, data) {
     if (box.querySelector('.wifi-qr')) return;
@@ -80,8 +71,7 @@
     if (!config.supabaseUrl || !config.supabaseAnonKey) return state('Configuração indisponível', 'Esta página ainda não está configurada.'); api = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
     const query = new URLSearchParams(location.search); const slug = query.get('slug') || location.pathname.split('/').filter(Boolean).pop(); if (!slug || slug === 'p' || slug === 'index.html') return state('Página não encontrada', 'Use o link completo fornecido pelo estabelecimento.');
     const { data, error } = await api.rpc('get_public_tenant_page', { requested_slug: slug }); if (error || !data) return state('Página não encontrada', 'Este estabelecimento não está disponível.'); if (data.availability === 'unavailable') return state('Este estabelecimento está temporariamente indisponível.', 'Tente novamente em outro momento.'); page = data;
-    const logoIcon = page.logo_path ? api.storage.from('tenant-logos').getPublicUrl(page.logo_path).data.publicUrl : '';
-    const generatedIcon = await appIcon(logoIcon, page.theme.primary_color, page.name);
+    const generatedIcon = page.app_icon_path ? api.storage.from('tenant-logos').getPublicUrl(page.app_icon_path).data.publicUrl : '';
     const defaultIcon = new URL('../assets/pwa-icon.svg', location.href).href;
     const manifest = {
       name: page.name,
