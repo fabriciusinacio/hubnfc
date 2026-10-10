@@ -12,6 +12,12 @@
 .menu-row input[type="checkbox"] { width:17px; height:17px; accent-color:var(--green); }
 .menu-icon { display:grid; place-items:center; width:34px; height:34px; color:var(--green); background:#e7f1ea; border-radius:5px; }
 .menu-icon .lucide { width:18px; }
+.icon-picker { margin:18px 0; padding:0; border:0; }
+.icon-picker legend { margin-bottom:10px; font-size:13px; font-weight:700; }
+.icon-picker > div { display:flex; flex-wrap:wrap; gap:8px; }
+.icon-choice { display:grid; place-items:center; width:40px; height:40px; padding:0; color:var(--green); background:#eef5f0; border:1px solid transparent; border-radius:5px; cursor:pointer; }
+.icon-choice:hover, .icon-choice.selected { color:#fff; background:var(--green); border-color:var(--green); }
+.icon-choice .lucide { width:18px; height:18px; }
 .menu-row-content { display:grid; gap:3px; min-width:0; }
 .menu-row-content strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .menu-row-content span { color:var(--muted); font-size:12px; }

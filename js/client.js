@@ -10,11 +10,15 @@ window.NfcHubClient = (() => {
     location: { label: 'Localização', icon: 'map-pin', type: 'url' },
     wifi: { label: 'Conectar Wi-Fi', icon: 'wifi', type: 'wifi' },
     add_to_home: { label: 'Adicionar à tela inicial', icon: 'plus-square', type: 'shortcut' },
+    custom: { label: 'Atalho personalizado', icon: 'link', type: 'custom' },
   };
+  const CUSTOM_ICONS = ['link', 'globe-2', 'message-circle', 'mail', 'phone', 'map-pin', 'instagram', 'facebook', 'star', 'calendar-days', 'shopping-bag', 'info', 'external-link'];
   let api; let user; let logout; let tenant; let buttons = []; let wifi = null; let managedTenantId = null; let returnToAdmin = null;
   const app = () => document.querySelector('#app');
   const icons = () => window.lucide?.createIcons();
   const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+  const customIcon = (button) => CUSTOM_ICONS.includes(button.config?.icon) ? button.config.icon : 'link';
+  const buttonIcon = (button) => button.kind === 'custom' ? customIcon(button) : (BUTTONS[button.kind]?.icon || 'link');
 
   function toast(message, error = false) {
     const element = document.createElement('div'); element.className = `toast${error ? ' error' : ''}`; element.textContent = message; document.body.append(element); setTimeout(() => element.remove(), 3800);
@@ -87,7 +91,7 @@ window.NfcHubClient = (() => {
     const item = document.createElement('article'); item.className = 'menu-row';
     const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = button.active; toggle.setAttribute('aria-label', `Ativar ${button.label}`);
     toggle.addEventListener('change', () => saveButton(button, { active: toggle.checked }, toggle));
-    const glyph = document.createElement('span'); glyph.className = 'menu-icon'; glyph.innerHTML = icon(BUTTONS[button.kind]?.icon || 'link');
+    const glyph = document.createElement('span'); glyph.className = 'menu-icon'; glyph.innerHTML = icon(buttonIcon(button));
     const content = document.createElement('div'); content.className = 'menu-row-content';
     const title = document.createElement('strong'); title.textContent = button.label;
     const detail = document.createElement('span'); detail.textContent = BUTTONS[button.kind]?.label || button.kind;
@@ -103,7 +107,7 @@ window.NfcHubClient = (() => {
     const view = document.querySelector('#client-view'); view.replaceChildren();
     const header = document.createElement('header'); header.className = 'view-header'; header.innerHTML = `<div><p class="eyebrow">PÁGINA PÚBLICA</p><h1>Meu Menu</h1><p>Somente opções ativadas e configuradas aparecem para seus visitantes.</p></div>`;
     const layout = document.createElement('div'); layout.className = 'client-grid';
-    const panel = document.createElement('section'); panel.className = 'panel'; const title = document.createElement('div'); title.className = 'panel-title'; title.innerHTML = '<h2>Opções do menu</h2>'; panel.append(title);
+    const panel = document.createElement('section'); panel.className = 'panel'; const title = document.createElement('div'); title.className = 'panel-title'; title.innerHTML = '<h2>Opções do menu</h2>'; const add = document.createElement('button'); add.className = 'button button-secondary'; add.type = 'button'; add.innerHTML = `${icon('plus')}Novo botão`; add.addEventListener('click', () => editButton(null)); title.append(add); panel.append(title);
     const list = document.createElement('div'); list.className = 'menu-list'; buttons.forEach((button, index) => list.append(row(button, index))); panel.append(list); layout.append(panel); preview(layout); view.append(header, layout); icons();
   }
 
@@ -136,10 +140,24 @@ window.NfcHubClient = (() => {
     const raw = value.trim(); if (!raw) return '';
     if (kind === 'phone') { const number = raw.replace(/\D/g, ''); return number ? `tel:+${number}` : ''; }
     if (kind === 'whatsapp') { const number = raw.replace(/\D/g, ''); const text = message.trim(); return number ? `https://wa.me/${number}${text ? `?text=${encodeURIComponent(text)}` : ''}` : ''; }
+    if (kind === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw) ? `mailto:${raw.toLowerCase()}` : '';
     try { const url = new URL(raw.match(/^https?:\/\//i) ? raw : `https://${raw}`); return ['https:', 'http:'].includes(url.protocol) ? url.toString() : ''; } catch { return ''; }
   }
 
+  function editCustomButton(button) {
+    const creating = !button; const data = modal(creating ? 'Novo botao' : `Editar ${button.label}`, 'Defina o nome, destino e icone. Na pagina publica aparece somente o nome e o icone.'); const form = document.createElement('form');
+    form.innerHTML = `<label class="field">Nome exibido<input name="label" maxlength="60" required /></label><label class="field">Este botao abre<select name="destination_type"><option value="url">Um site ou link</option><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="phone">Telefone</option><option value="location">Localizacao no mapa</option></select></label><label class="field" id="custom-destination"><span></span><input name="destination" required /></label><label class="field custom-message hidden">Mensagem opcional<textarea name="message" maxlength="300"></textarea></label><fieldset class="icon-picker"><legend>Icone</legend><div>${CUSTOM_ICONS.map((name) => `<button type="button" class="icon-choice" data-custom-icon="${name}" title="${name}">${icon(name)}</button>`).join('')}</div></fieldset><label class="field"><span><input name="active" type="checkbox" checked /> Exibir este botao no menu</span></label><p class="notice hidden"></p><div class="form-actions"><button type="button" class="button button-secondary" data-cancel>Cancelar</button><button class="button" type="submit">Salvar</button></div>`;
+    const type = form.elements.destination_type; const destination = form.elements.destination; const message = form.elements.message; let selectedIcon = customIcon(button || {});
+    const configureDestination = () => { const current = type.value; const label = current === 'whatsapp' ? 'WhatsApp com DDI' : current === 'email' ? 'E-mail' : current === 'phone' ? 'Telefone com DDI' : current === 'location' ? 'Link do Google Maps' : 'URL de destino'; form.querySelector('#custom-destination span').textContent = label; destination.placeholder = current === 'whatsapp' ? '5541999999999' : current === 'email' ? 'contato@exemplo.com' : current === 'phone' ? '5541999999999' : current === 'location' ? 'https://maps.google.com/...' : 'https://exemplo.com'; form.querySelector('.custom-message').classList.toggle('hidden', current !== 'whatsapp'); };
+    const selectIcon = () => form.querySelectorAll('[data-custom-icon]').forEach((choice) => choice.classList.toggle('selected', choice.dataset.customIcon === selectedIcon));
+    form.elements.label.value = button?.label || ''; form.elements.active.checked = button?.active ?? true; type.value = button?.config?.destination_type || 'url';
+    const currentType = type.value; const currentTarget = button?.target_url || ''; destination.value = currentType === 'whatsapp' ? currentTarget.replace(/^https:\/\/wa\.me\//, '').split('?')[0] : currentType === 'email' ? currentTarget.replace(/^mailto:/, '') : currentType === 'phone' ? currentTarget.replace(/^tel:\+?/, '') : currentTarget; message.value = button?.config?.message || ''; configureDestination(); selectIcon();
+    type.addEventListener('change', configureDestination); form.querySelectorAll('[data-custom-icon]').forEach((choice) => choice.addEventListener('click', () => { selectedIcon = choice.dataset.customIcon; selectIcon(); })); form.querySelector('[data-cancel]').addEventListener('click', data.dismiss); data.box.append(form); icons();
+    form.addEventListener('submit', async (event) => { event.preventDefault(); const destinationValue = normalizeUrl(destination.value, type.value === 'location' ? 'url' : type.value, message.value); const notice = form.querySelector('.notice'); if (!destinationValue) { notice.textContent = 'Informe um destino valido e seguro.'; notice.classList.remove('hidden'); return; } const payload = { label: form.elements.label.value.trim(), target_url: destinationValue, active: form.elements.active.checked, config: { destination_type: type.value, icon: selectedIcon, ...(type.value === 'whatsapp' && message.value.trim() ? { message: message.value.trim() } : {}) } }; let error; if (creating) { const result = await api.from('tenant_buttons').insert({ ...payload, tenant_id: tenant.id, kind: 'custom', display_order: Math.max(0, ...buttons.map((item) => item.display_order || 0)) + 10 }); error = result.error; } else { const result = await api.from('tenant_buttons').update(payload).eq('id', button.id).eq('tenant_id', tenant.id); error = result.error; } if (error) { notice.textContent = error.message || 'Nao foi possivel salvar o botao.'; notice.classList.remove('hidden'); return; } data.dismiss(); await loadTenant(); showMenu(); });
+  }
+
   function editButton(button) {
+    if (!button || button.kind === 'custom') return editCustomButton(button);
     if (button.kind === 'wifi') return editWifi(button);
     if (button.kind === 'add_to_home') { toast('Esta ação usa o recurso de instalação do navegador e não precisa de destino.'); return; }
     const definition = BUTTONS[button.kind] || { type: 'url' }; const data = modal(`Editar ${definition.label || button.label}`, 'Use destinos seguros. Esquemas javascript: e data: não são aceitos.'); const form = document.createElement('form'); form.innerHTML = `<label class="field">Nome exibido<input name="label" maxlength="60" required /></label><label class="field">${definition.type === 'phone' ? 'Telefone com DDI' : definition.type === 'whatsapp' ? 'WhatsApp com DDI' : 'URL de destino'}<input name="destination" required />${definition.type === 'whatsapp' ? '<small>Use o DDI sem +. Exemplo: 5541997331796.</small>' : ''}</label>${definition.type === 'whatsapp' ? '<label class="field">Mensagem opcional<textarea name="message" maxlength="300"></textarea></label>' : ''}<p class="notice hidden"></p><div class="form-actions"><button type="button" class="button button-secondary" data-cancel>Cancelar</button><button class="button" type="submit">Salvar</button></div>`;
