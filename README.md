@@ -64,7 +64,7 @@ README.md
 index.html
 ```
 
-`index.html` identifica o papel do usuario: super admins veem a administracao global, enquanto membros de tenant ativo veem o painel do estabelecimento. `p/index.html?slug=SEU-SLUG` e a pagina publica do estabelecimento.
+`index.html` identifica o papel do usuario: super admins veem a administracao global, enquanto membros de tenant ativo veem o painel do estabelecimento. A pagina publica usa a URL limpa `p/SEU-SLUG`.
 
 ## Configuracao do Supabase
 

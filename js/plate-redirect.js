@@ -8,7 +8,7 @@
     const api = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
     const { data, error } = await api.rpc('resolve_nfc_plate_destination', { requested_code: code });
     if (error || !data?.value) return state('Placa indisponível', 'Esta placa ainda não foi ativada ou está desativada.');
-    location.replace(data.kind === 'url' ? data.value : `../p/index.html?slug=${encodeURIComponent(data.value)}`);
+    location.replace(data.kind === 'url' ? data.value : `../p/${encodeURIComponent(data.value)}`);
   }
   boot();
 })();

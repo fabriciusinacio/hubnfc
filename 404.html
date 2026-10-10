@@ -5,11 +5,12 @@
     <script>
       (() => {
         const parts = location.pathname.split('/').filter(Boolean);
-        const routeIndex = parts.findIndex((part) => part === 'r' || part === 'w');
+        const routeIndex = parts.findIndex((part) => part === 'r' || part === 'w' || part === 'p');
         const code = routeIndex >= 0 ? parts[routeIndex + 1] : '';
-        if (!/^[a-f0-9]{24}$/i.test(code)) return;
+        if (routeIndex < 0) return;
         const base = `/${parts.slice(0, routeIndex).join('/')}`.replace(/\/$/, '');
-        location.replace(`${base}/${parts[routeIndex]}/index.html?code=${encodeURIComponent(code)}`);
+        if (parts[routeIndex] === 'p' && /^[a-z0-9][a-z0-9-]{2,62}$/i.test(code)) return location.replace(`${base}/p/index.html?slug=${encodeURIComponent(code)}`);
+        if (/^[a-f0-9]{24}$/i.test(code)) location.replace(`${base}/${parts[routeIndex]}/index.html?code=${encodeURIComponent(code)}`);
       })();
     </script>
     <p>Redirecionando...</p>
